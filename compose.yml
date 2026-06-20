@@ -1,0 +1,11 @@
+services:
+  bridge:
+    build: .
+    container_name: dc-bridge
+    restart: unless-stopped
+
+    environment:
+      DC_ACCOUNTS_PATH: /data
+
+    volumes:
+      - ./data:/data

@@ -1,0 +1,8 @@
+data/
+
+# Go
+/whatsapp-deltachat-bridge
+*.o
+*.a
+*.so
+dist/
