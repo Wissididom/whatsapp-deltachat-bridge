@@ -129,9 +129,9 @@ func extensionFromMime(mimeType string) string {
 func waEventHandler(evt any) {
 	switch v := evt.(type) {
 		case *events.Message:
-			/*if v.Info.IsFromMe {
+			if v.Info.IsFromMe {
 				break
-			}*/
+			}
 			senderName := v.Info.PushName
 			senderId := v.Info.Sender.User
 			chatId := v.Info.Chat
