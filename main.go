@@ -111,18 +111,33 @@ func getAccount(rpc *deltachat.Rpc) uint32 {
 	return accId
 }
 
+func extensionFromMime(mimeType string) string {
+	switch mimeType {
+		case "image/jpeg":
+			return ".jpg"
+		case "image/png":
+			return ".png"
+		case "image/gif":
+			return ".gif"
+		case "image/webp":
+			return ".webp"
+		default:
+			return ".bin"
+	}
+}
+
 func waEventHandler(evt any) {
 	switch v := evt.(type) {
 		case *events.Message:
+			/*if v.Info.IsFromMe {
+				break
+			}*/
+			senderName := v.Info.PushName
+			senderId := v.Info.Sender.User
+			chatId := v.Info.Chat
 			// https://github.com/tulir/whatsmeow/blob/089932318bc2/proto/waE2E/WAWebProtobufsE2E.pb.go#L10365
 			conversation := v.Message.GetConversation();
 			if conversation != "" {
-				/*if v.Info.IsFromMe {
-					break
-				}*/
-				senderName := v.Info.PushName
-				senderId := v.Info.Sender.User
-				chatId := v.Info.Chat
 				text := fmt.Sprintf(
 					"From: %s (%s) in Chat %s\n\n%s",
 					senderName,
@@ -139,7 +154,49 @@ func waEventHandler(evt any) {
 					log.Printf("ERROR: %v", err)
 				}
 			}
-			fmt.Println("WhatsApp-Message-ImageMessage:", v.Message.GetImageMessage())
+			imageMessage := v.Message.GetImageMessage();
+			if imageMessage != nil {
+				caption := imageMessage.GetCaption()
+				mimeType := imageMessage.GetMimetype()
+				ext := extensionFromMime(mimeType)
+				//width := imageMessage.GetWidth()
+				//height := imageMessage.GetHeight()
+				data, err := waClient.Download(context.Background(), imageMessage)
+				if err == nil {
+					text := fmt.Sprintf(
+						"From: %s (%s) in Chat %s\n\n%s",
+						senderName,
+						senderId,
+						chatId,
+						caption,
+					)
+					tmpFile, err := os.CreateTemp("", "wa-image-*" + ext)
+					if err == nil {
+						defer os.Remove(tmpFile.Name())
+						_, err = tmpFile.Write(data)
+						tmpFile.Close()
+						if err == nil {
+							filePath := tmpFile.Name()
+							reply := deltachat.MessageData{
+								Text: &text,
+								File: &filePath,
+							}
+							if _, err := dcBot.Rpc.SendMsg(
+								1,  //AccountId
+								10, //ChatId
+								reply,
+							); err != nil {
+								log.Printf("ERROR: %v", err)
+							}
+						}
+					} else {
+						log.Printf("ERROR: %v", err)
+					}
+				} else {
+					log.Printf("ERROR: %v", err)
+				}
+			}
+			fmt.Println("WhatsApp-Message-ImageMessage:", imageMessage)
 			fmt.Println("WhatsApp-Message-ContactMessage:", v.Message.GetContactMessage())
 			fmt.Println("WhatsApp-Message-LocationMessage:", v.Message.GetLocationMessage())
 			fmt.Println("WhatsApp-Message-ExtendedTextMessage:", v.Message.GetExtendedTextMessage())
